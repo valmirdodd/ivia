@@ -13,7 +13,8 @@ namespace apiAgendamento.Controllers
     {
         [HttpGet]
         [Route("DataAgendamento/{dtAgendamento}")]
-        public async Task<IActionResult> ListarPorData(
+        public async Task<IActionResult>
+        ListarPorData(
             [FromServices] IAgendamentoDal agendamentoDal,
             DateTime dtAgendamento
         )
@@ -41,7 +42,8 @@ namespace apiAgendamento.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> InserirAgenda(
+        public async Task<IActionResult>
+        InserirAgenda(
             [FromServices] IAgendamentoDal agendamentoDal,
             [FromBody] Agendamento body
         )
@@ -49,14 +51,7 @@ namespace apiAgendamento.Controllers
             try
             {
                 Agendamento retorno = await agendamentoDal.Insert(body);
-                // if (retorno.IdAgendamento != 0)
-                // {
-                    return Ok(retorno);
-                // }
-                // else
-                // {
-                //     return Ok(new { message = "Não inserido" });
-                // }
+                return Ok(retorno);
             }
             catch (System.Exception ex)
             {

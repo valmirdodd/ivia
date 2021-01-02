@@ -16,7 +16,7 @@ namespace apiAgendamento.Dal
         Task<List<Agendamento>> FindAllByDate(DateTime dtAgendamento);
 
         /// <summary>
-        /// Inserir uma agendamento
+        /// Inserir um agendamento
         /// </summary>
         /// <param name="Agendamento">Agendamento</param>
         /// <returns><Agendamento></returns>

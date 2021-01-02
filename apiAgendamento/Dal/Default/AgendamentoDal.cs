@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +23,7 @@ namespace apiAgendamento.Dal.Default
         {
             //Uma vez que o agendamento só é possível entre 08:00 e 18:00,
             //pode-se testar a existência em uma determinada data
-            //pelo campo DhInicial ou DhFinal
+            //tanto pelo campo DhInicial cuanto pelo campo DhFinal
             //Foi escolhido arbitrariamente o campo DtInicial
             DateTime dtIni = dtAgendamento.Date;
             DateTime dtFin = dtIni.AddDays(1).AddMinutes(-1);
@@ -72,9 +71,6 @@ namespace apiAgendamento.Dal.Default
                         DateTime
                             .Parse(agendamento.DhFinal.ToString("HH:mm:ss"));
 
-                    Console
-                        .WriteLine(string
-                            .Format("{0} = {1}", dhInicial, dhFinal));
                     if (dhInicial != dhFinal)
                     {
                         retorno.Mensagem =
@@ -82,9 +78,6 @@ namespace apiAgendamento.Dal.Default
                     }
                     else
                     {
-                        Console
-                            .WriteLine(string
-                                .Format("{0} <= {1}", hrFinal, hrInicial));
                         if (hrFinal <= hrInicial)
                         {
                             retorno.Mensagem =
@@ -95,38 +88,42 @@ namespace apiAgendamento.Dal.Default
                             Console.WriteLine("hora do expediente");
                             if (
                                 hrInicial.Hour < 8 ||
-                                (hrInicial.Hour >= 12 && hrInicial.Hour < 13) ||
+                                (hrInicial.Hour > 12 && hrInicial.Hour < 13) ||
                                 hrInicial.Hour > 18 ||
                                 hrFinal.Hour < 8 ||
-                                (hrFinal.Hour >= 12 && hrFinal.Hour < 13) ||
+                                (hrFinal.Hour > 12 && hrFinal.Hour < 13) ||
                                 hrFinal.Hour > 18
                             )
                             {
                                 retorno.Mensagem =
                                     "Agendamento fora do horário de atendimento";
                             }
+                            else
+                            {
+                                //Verificar se há agendamento no período, levando em consideração o delay de 30 minutos entre agendamentos
+                                int vagasPreenchidasNoHorario =
+                                    this
+                                        .VagasPreenchidasNoHorario(agendamento)
+                                        .Result;
+
+                                if (vagasPreenchidasNoHorario >= 3)
+                                {
+                                    retorno.Mensagem =
+                                        "Não há vagas disponíveis para o agendamento solicitado";
+                                }
+                                else
+                                {
+                                    agendamento.IdVaga =
+                                        vagasPreenchidasNoHorario + 1;
+                                    _contexto.Update (agendamento);
+                                    await _contexto.SaveChangesAsync();
+                                    retorno.Mensagem =
+                                        "Agendamento salvo com sucesso";
+                                    retorno.IdAgendamento =
+                                        agendamento.IdAgendamento;
+                                }
+                            }
                         }
-                    }
-
-                    //Verificar se há agendamento no período, levando em consideração o delay de 30 minutos entre agendamentos
-                    bool agendaDisponivel =
-                        (bool) this.AgendaDisponivel(agendamento).Result;
-
-                        Console
-                            .WriteLine(string
-                                .Format("agendaDisponivel: {0}", agendaDisponivel));
-                    
-
-                    if (!agendaDisponivel)
-                    {
-                        retorno.Mensagem =
-                            "Não há vagas disponíveis para o agendamento";
-                    }
-                    else
-                    {
-                        _contexto.Update (agendamento);
-                        await _contexto.SaveChangesAsync();
-                        retorno.Mensagem = "Agendamento salvo com sucesso";
                     }
                 }
             }
@@ -139,46 +136,43 @@ namespace apiAgendamento.Dal.Default
             return retorno;
         }
 
-        private async Task<List<Agendamento>>
-        FindAllByAgendamento(Agendamento agendamento)
-        {
-            List<Agendamento> agendamentos =
-                await _contexto
-                    .Agendamentos
-                    .Where(reg =>
-                        reg.DhInicial >= agendamento.DhInicial &&
-                        reg.DhInicial <= agendamento.DhFinal)
-                    .AsNoTracking()
-                    .ToListAsync();
-            return agendamentos;
-        }
+        // private async Task<List<Agendamento>>
+        // FindAllByAgendamento(Agendamento agendamento)
+        // {
+        //     List<Agendamento> agendamentos =
+        //         await _contexto
+        //             .Agendamentos
+        //             .Where(reg =>
+        //                 reg.DhInicial >= agendamento.DhInicial &&
+        //                 reg.DhInicial <= agendamento.DhFinal)
+        //             .AsNoTracking()
+        //             .ToListAsync();
+        //     return agendamentos;
+        // }
 
-        private async Task<bool> AgendaDisponivel(Agendamento agendamento)
+        private async Task<int>
+        VagasPreenchidasNoHorario(Agendamento agendamento)
         {
-            //Horário auxiliar considerando que há um intervalo de 30 minutos antes e depois dos agendamentos
-            DateTime DhIni_ConsideraIntervalo =
-                agendamento.DhInicial.AddHours(-0.5);
-            DateTime DhFin_ConsideraIntervalo =
-                agendamento.DhFinal.AddHours(0.5);
-
             int idVeiculo = agendamento.IdVeiculo;
 
             Veiculo veiculo = await _contexto.Veiculos.FindAsync(idVeiculo);
             int idFornecedor = veiculo.IdFornecedor;
 
+            //Como não foi explicitado uma regra expecífica para o número da vaga,
+            //Estou considerando que o Id da vaga será gerado automaticamente pela api
             List<Agendamento> agendamentos =
                 await _contexto
                     .Agendamentos
-                    .Where(reg =>
-                        reg.DhInicial >= DhIni_ConsideraIntervalo &&
-                        reg.DhInicial <= DhFin_ConsideraIntervalo)
+                    .Where(reg => //Intervalo de 30 minutos antes e depois dos agendamentos
+                        reg.DhFinal > agendamento.DhInicial.AddHours(-0.5) &&
+                        reg.DhInicial < agendamento.DhFinal.AddHours(0.5))
                     .Include(reg => reg.IdVeiculoNavigation)
                     .ThenInclude(v => v.IdFornecedorNavigation)
                     .Where(reg =>
                         reg.IdVeiculoNavigation.IdFornecedor == idFornecedor)
                     .ToListAsync();
 
-            return agendamentos.Count() < 3;
+            return agendamentos.Count();
         }
     }
 }
