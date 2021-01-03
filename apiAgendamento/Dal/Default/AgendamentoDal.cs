@@ -85,7 +85,6 @@ namespace apiAgendamento.Dal.Default
                         }
                         else
                         {
-                            Console.WriteLine("hora do expediente");
                             if (
                                 hrInicial.Hour < 8 ||
                                 (hrInicial.Hour > 12 && hrInicial.Hour < 13) ||
@@ -129,7 +128,6 @@ namespace apiAgendamento.Dal.Default
             }
             catch (System.Exception ex)
             {
-                Console.WriteLine (ex);
                 throw ex;
             }
 
