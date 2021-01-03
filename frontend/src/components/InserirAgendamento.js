@@ -1,35 +1,24 @@
 import React, { Component } from 'react';
 import { Modal, Button, Row, Col, Form } from 'react-bootstrap';
+import api from './../services/api'
 
 export class InserirAgendamento extends Component {
     constructor(props) {
         super(props);
     }
 
-    handleSubmit(event) {
+    async handleSubmit(event) {
         event.preventDefault();
 
-        const urlApi = "https://localhost:5001/v1/Agendamento";
-
-        alert(event.target.dtAgendamento.value + "T" + event.target.hrInicial.value);
-        alert(event.target.dtAgendamento.value + "T" + event.target.hrFinal.value);
-        alert(event.target.obs.value);
-        alert(event.target.idVeiculo.value);
-        alert(urlApi);
-
-        const requestOptions = {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                dhInicial: event.target.dtAgendamento.value + "T" + event.target.hrInicial.value,
-                dhFinal: event.target.dtAgendamento.value + "T" + event.target.hrFinal.value,
-                obs: event.target.obs.value,
-                idVeiculo: event.target.idVeiculo.value                
-             })
-        };
-        fetch(urlApi, requestOptions)
-            .then(response => response.json())
-            .then(data => alert(data.json));
+        const response = await api.post("/Agendamento",
+        {
+            dhInicial: event.target.dtAgendamento.value + "T" + event.target.hrInicial.value,
+            dhFinal: event.target.dtAgendamento.value + "T" + event.target.hrFinal.value,
+            obs: event.target.obs.value,
+            idVeiculo: event.target.idVeiculo.value
+        })
+        .then(response => alert(response.data))
+        .catch(erro => alert("ops! ocorreu o seguinte erro: " + erro.message));
     }
 
     render() {
