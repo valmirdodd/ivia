@@ -25,6 +25,7 @@ namespace apiAgendamento
             services.AddCors();
             services.AddControllers();
             services.AddTransient<IAgendamentoDal, AgendamentoDal>();
+            services.AddTransient<IVeiculoDal, VeiculoDal>();
 
             services
                 .AddDbContext<ApiDbContext>(options =>
